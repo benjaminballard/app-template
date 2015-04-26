@@ -1,11 +1,13 @@
 package benchmark;
 
+import java.util.Random;
 import org.voltdb.*;
 import org.voltdb.client.*;
 
 public class Benchmark {
 
     private Client client;
+    private Random rand = new Random();
 
     public Benchmark(String servers) throws Exception {
         client = ClientFactory.createClient();
@@ -18,25 +20,27 @@ public class Benchmark {
 
     public void init() throws Exception {
 
-        client.callProcedure(new BenchmarkCallback("HELLOWORLD.insert"),
-                             "HELLOWORLD.insert",
-                             0,
-                             "Hello"
-                             );
-
-
+        // any initial setup can go here
+        
     }
 
     
     public void runBenchmark() throws Exception {
 
-        for (int i=1; i<10000; i++) {
+        for (int i=0; i<1000000; i++) {
 
-            client.callProcedure(new BenchmarkCallback("HELLOWORLD.insert"),
-                                 "HELLOWORLD.insert",
-                                 i,
-                                 "Hello again"
-                                 );
+            int appid = rand.nextInt(50);
+            int deviceid = rand.nextInt(1000000);
+            int sessions = (appid + deviceid) % 5;
+
+            for (int j=0; j<sessions; j++) {
+                client.callProcedure(new BenchmarkCallback("APP_SESSION.insert"),
+                                     "APP_SESSION.insert",
+                                     appid,
+                                     deviceid,
+                                     null
+                                     );
+            }
 
         }
 
