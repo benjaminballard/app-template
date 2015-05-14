@@ -57,19 +57,8 @@ public class Benchmark {
         String serverlist = "localhost";
         if (args.length > 0) { serverlist = args[0]; }
         Benchmark benchmark = new Benchmark(serverlist);
-        if (args.length <= 1) {
-            benchmark.init();
-            benchmark.runBenchmark();
-        } else {
-            for (int i=1; i<args.length; i++) {
-                String arg = args[i];
-                if (arg.equals("init")) {
-                    benchmark.init();
-                }
-                if (arg.equals("benchmark")) {
-                    benchmark.runBenchmark();
-                }
-            }
-        }
+        benchmark.init();
+        benchmark.runBenchmark();
+
     }
 }
