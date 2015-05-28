@@ -1,6 +1,17 @@
 #!/usr/bin/env bash
 
-CP="`ls $(dirname $(dirname $(which voltdb)))/voltdb/voltdbclient-*.jar`"
+# set CLASSPATH
+if [ -d "/usr/lib/voltdb" ]; then
+    # .deb or .rpm install
+    CP="$(ls -1 /usr/lib/voltdb/voltdbclient-*.jar)"
+elif [ -d "$(dirname $(which voltdb))" ]; then
+    # tar.gz install
+    CP="$(ls -1 $(dirname $(dirname "$(which voltdb)"))/voltdb/voltdbclient-*.jar)"
+else
+    echo "VoltDB client library not found.  If you installed with the tar.gz file, you need to add the bin directory to your PATH"
+    exit
+fi
+
 SRC=`find src/benchmark -name "*.java"`
 
 if [ ! -z "$SRC" ]; then
