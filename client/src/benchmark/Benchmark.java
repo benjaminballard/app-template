@@ -8,6 +8,7 @@ public class Benchmark {
 
     private Client client;
     private Random rand = new Random();
+    private BenchmarkStats stats;
 
     public Benchmark(String servers) throws Exception {
         client = ClientFactory.createClient();
@@ -15,17 +16,21 @@ public class Benchmark {
         for (String server : serverArray) {
             client.createConnection(server);
         }
+
+        stats = new BenchmarkStats(client);
     }
 
 
     public void init() throws Exception {
 
         // any initial setup can go here
-        
+
     }
 
-    
+
     public void runBenchmark() throws Exception {
+
+        stats.startBenchmark();
 
         for (int i=0; i<1000000; i++) {
 
@@ -44,14 +49,15 @@ public class Benchmark {
 
         }
 
-        client.drain();
+        stats.endBenchmark();
 
+        client.drain();
         BenchmarkCallback.printAllResults();
 
         client.close();
     }
-    
-    
+
+
     public static void main(String[] args) throws Exception {
 
         String serverlist = "localhost";

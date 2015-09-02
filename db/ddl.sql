@@ -1,5 +1,16 @@
 file -inlinebatch END_OF_BATCH
 
+DROP PROCEDURE apps_by_unique_devices IF EXISTS;
+DROP PROCEDURE SelectDeviceSessions IF EXISTS;
+DROP VIEW app_sessions_minutely IF EXISTS;
+DROP TABLE app_session IF EXISTS;
+
+END_OF_BATCH
+
+-- Update classes from jar to that server will know about classes but not procedures yet.
+LOAD CLASSES procs.jar;
+
+file -inlinebatch END_OF_BATCH
 
 CREATE TABLE app_session (
   appid            INTEGER      NOT NULL,
@@ -26,14 +37,7 @@ GROUP BY appid, deviceid
 GROUP BY appid
 ORDER BY unique_devices DESC;
 
-
-
-END_OF_BATCH
-
-
--- Update classes from jar to that server will know about classes but not procedures yet.
-LOAD CLASSES procs.jar;
-
 -- Define procedures
 CREATE PROCEDURE PARTITION ON TABLE app_session COLUMN deviceid FROM CLASS procedures.SelectDeviceSessions;
 
+END_OF_BATCH
