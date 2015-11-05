@@ -32,18 +32,17 @@ public class Benchmark {
 
         stats.startBenchmark();
 
-        for (int i=0; i<1000000; i++) {
+        for (int i=0; i<10000000; i++) {
 
             int appid = rand.nextInt(50);
             int deviceid = rand.nextInt(1000000);
             int sessions = (appid + deviceid) % 5;
 
             for (int j=0; j<sessions; j++) {
-                client.callProcedure(new BenchmarkCallback("APP_SESSION.insert"),
-                                     "APP_SESSION.insert",
+                client.callProcedure(new BenchmarkCallback("insert_session"),
+                                     "insert_session",
                                      appid,
-                                     deviceid,
-                                     null
+                                     deviceid
                                      );
             }
 
