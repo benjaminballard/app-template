@@ -10,10 +10,10 @@ Code organization
 -----------------
 The code is divided into projects:
 
-- "db": the database project, which contains the schema, stored procedures and other configurations that are compiled into a catalog and run in a VoltDB database.  
+- "db": the database project, which contains the schema, stored procedures and other configurations that are compiled into a catalog and run in a VoltDB database.
 - "client": a java client that generates data and submits calls to the database.
 
-See below for instructions on running these applications.  For any questions, 
+See below for instructions on running these applications.  For any questions,
 please contact bballard@voltdb.com.
 
 Pre-requisites
@@ -32,26 +32,23 @@ If you installed the .deb or .rpm distribution, the binaries should already be i
 Instructions
 ------------
 
-1. Start the database 
+Start the database
 
     cd db
     voltdb create -d deployment-demo.xml -B
 
-2. Load the schema
+Load the schema
 
     cd db
     ./compile_procs.sh
     sqlcmd < ddl.sql
 
-3. Run the client
+Run the client
 
     cd client
     ./run_client.sh
 
-    
-4. Stop the database
+
+Stop the database
 
     voltadmin shutdown
-   
-
-
