@@ -41,9 +41,6 @@ FROM app_usage
 GROUP BY appid
 ORDER BY unique_devices DESC;
 
-CREATE PROCEDURE insert_session PARTITION ON TABLE app_session COLUMN deviceid PARAMETER 1 AS
-INSERT INTO app_session (appid, deviceid) VALUES (?,?);
-
 CREATE PROCEDURE PARTITION ON TABLE app_session COLUMN deviceid FROM CLASS procedures.SelectDeviceSessions;
 
 END_OF_BATCH
