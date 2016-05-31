@@ -1,5 +1,7 @@
 file -inlinebatch END_OF_BATCH
 
+DROP PROCEDURE BatchInsert IF EXISTS;
+DROP PROCEDURE BatchInsertVoltTable IF EXISTS;
 DROP PROCEDURE apps_by_unique_devices IF EXISTS;
 DROP PROCEDURE SelectDeviceSessions IF EXISTS;
 DROP PROCEDURE insert_session IF EXISTS;
@@ -42,5 +44,7 @@ GROUP BY appid
 ORDER BY unique_devices DESC;
 
 CREATE PROCEDURE PARTITION ON TABLE app_session COLUMN deviceid FROM CLASS procedures.SelectDeviceSessions;
+CREATE PROCEDURE PARTITION ON TABLE app_session COLUMN deviceid FROM CLASS procedures.BatchInsert;
+CREATE PROCEDURE PARTITION ON TABLE app_session COLUMN deviceid FROM CLASS procedures.BatchInsertVoltTable;
 
 END_OF_BATCH

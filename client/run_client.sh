@@ -24,6 +24,5 @@ if [ ! -z "$SRC" ]; then
     rm -rf obj
 
     java -classpath "client.jar:$CP" benchmark.Benchmark $*
-         
-fi
 
+fi
