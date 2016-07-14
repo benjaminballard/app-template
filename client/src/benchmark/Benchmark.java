@@ -11,21 +11,14 @@ public class Benchmark {
 
     private Client client;
     private Random rand = new Random();
-    private VoltBulkLoader bulkLoader;
-    private int testSize = 10000000;
-    private int bulkLoaderBatchSize = 500;
 
     public Benchmark(String servers) throws Exception {
-
         ClientConfig config = new ClientConfig();
         client = ClientFactory.createClient(config);
         String[] serverArray = servers.split(",");
         for (String server : serverArray) {
             client.createConnection(server);
         }
-
-        // Get a BulkLoader for the table we want to load, with a given batch size and one callback handles failures for any failed batches
-        bulkLoader = client.getNewBulkLoader("app_session",bulkLoaderBatchSize, new SessionFailureCallback());
     }
 
     // we must implement the BulkLoaderFailureCallBack interface, there is no default implementation
@@ -65,9 +58,8 @@ public class Benchmark {
     }
 
 
-    public void runBenchmark() throws Exception {
+    public void runInsertBenchmark(int testSize) throws Exception {
 
-        //-----------------------------------------------------------------------------------------
         // For comparison, here is typical benchmark data generation using procedure calls
         System.out.println("Benchmarking APP_SESSION.insert procedure calls...");
         long startNanos = System.nanoTime();
@@ -84,15 +76,21 @@ public class Benchmark {
                                  time
                                  );
         }
+        client.drain(); // wait for all responses to return
         double elapsedSeconds = (System.nanoTime() - startNanos)/1000000000.0;
         int tps = (int)(testSize/elapsedSeconds);
         System.out.println("Loaded "+testSize+" records in "+elapsedSeconds+" seconds ("+tps+" rows/sec)");
+    }
 
+    // Here is benchmark data generation using the BulkLoader
+    public void runBulkLoaderBenchmark(int testSize, int batchSize) throws Exception {
 
-        //-----------------------------------------------------------------------------------------
-        // Here is benchmark data generation using the BulkLoader
         System.out.println("Benchmarking with VoltBulkLoader...");
-        startNanos = System.nanoTime();
+
+        // Get a BulkLoader for the table we want to load, with a given batch size and one callback handles failures for any failed batches
+        VoltBulkLoader bulkLoader = client.getNewBulkLoader("app_session",batchSize, new SessionFailureCallback());
+
+        long startNanos = System.nanoTime();
         for (int i=0; i<testSize; i++) {
 
             int appid = rand.nextInt(50);
@@ -104,16 +102,18 @@ public class Benchmark {
         }
         bulkLoader.drain();
         client.drain();
-        elapsedSeconds = (System.nanoTime() - startNanos)/1000000000.0;
-        tps = (int)(testSize/elapsedSeconds);
+        double elapsedSeconds = (System.nanoTime() - startNanos)/1000000000.0;
+        int tps = (int)(testSize/elapsedSeconds);
         System.out.println("Loaded "+testSize+" records in "+elapsedSeconds+" seconds ("+tps+" rows/sec)");
+
         bulkLoader.close();
+    }
 
 
-        //-----------------------------------------------------------------------------------------
-        // Here is benchmark data generation using a procedure that inserts multiple rows at a time
+    // Here is benchmark data generation using a procedure that inserts multiple rows at a time
+    public void runArrayProcedureBenchmark(int testSize) throws Exception {
         System.out.println("Benchmarking with BatchInsert procedure calls...");
-        startNanos = System.nanoTime();
+        long startNanos = System.nanoTime();
 
         // accumulate a list of sessions which share the same deviceid
         ArrayList<Session> sessionList = new ArrayList<Session>();
@@ -157,22 +157,22 @@ public class Benchmark {
 
         }
         client.drain();
-        elapsedSeconds = (System.nanoTime() - startNanos)/1000000000.0;
-        tps = (int)(counter/elapsedSeconds);
+        double elapsedSeconds = (System.nanoTime() - startNanos)/1000000000.0;
+        int tps = (int)(counter/elapsedSeconds);
         System.out.println("Loaded "+counter+" records in "+elapsedSeconds+" seconds ("+tps+" rows/sec)");
+    }
 
-
-        //-----------------------------------------------------------------------------------------
-        // Here is benchmark data generation using a procedure that inserts multiple rows at a time
+    // Here is benchmark data generation using a procedure that inserts multiple rows at a time
+    public void runVoltTableProcedureBenchmark(int testSize) throws Exception {
         System.out.println("Benchmarking with BatchInsertVoltTable procedure calls...");
-        startNanos = System.nanoTime();
+        long startNanos = System.nanoTime();
 
         // use a VoltTable to store multiple rows (minus the deviceid, since that is constant)
         VoltTable table = new VoltTable(new VoltTable.ColumnInfo("appid",VoltType.INTEGER),
                                         new VoltTable.ColumnInfo("time",VoltType.TIMESTAMP)
                                         );
 
-        counter = 0;
+        int counter = 0;
         while (counter < testSize) {
 
             // clear
@@ -197,22 +197,51 @@ public class Benchmark {
 
         }
         client.drain();
-        elapsedSeconds = (System.nanoTime() - startNanos)/1000000000.0;
-        tps = (int)(counter/elapsedSeconds);
+        double elapsedSeconds = (System.nanoTime() - startNanos)/1000000000.0;
+        int tps = (int)(counter/elapsedSeconds);
         System.out.println("Loaded "+counter+" records in "+elapsedSeconds+" seconds ("+tps+" rows/sec)");
+    }
+
+    public void runCopyToStream(int limit) throws Exception {
+        System.out.println("Running CopyToStream procedure calls...");
+
+        VoltTable partitionKeys = client.callProcedure("@GetPartitionKeys","INTEGER").getResults()[0];
+
+        while (partitionKeys.advanceRow()) {
+            long partitionId = partitionKeys.getLong("PARTITION_ID");
+            long partitionKey = partitionKeys.getLong("PARTITION_KEY");
+            client.callProcedure("CopyToStream",partitionKey, limit);
+        }
+        System.out.println("Stopped CopyToStream");
+    }
 
 
+    public void close() throws InterruptedException {
         client.close();
     }
+
 
 
     public static void main(String[] args) throws Exception {
 
         String serverlist = "localhost";
-        if (args.length > 0) { serverlist = args[0]; }
+        if (args.length > 0) {
+            serverlist = args[0];
+        }
         Benchmark benchmark = new Benchmark(serverlist);
+
+        int testRecordCount = 1000000;
+        if (args.length > 1) {
+            testRecordCount = Integer.parseInt(args[1]);
+        }
+
         benchmark.init();
-        benchmark.runBenchmark();
+        //benchmark.runInsertBenchmark(testRecordCount);
+        benchmark.runBulkLoaderBenchmark(testRecordCount,1000);
+        //benchmark.runArrayProcedureBenchmark(testRecordCount);
+        //benchmark.runVoltTableProcedureBenchmark(testRecordCount);
+        benchmark.runCopyToStream(100000);
+        benchmark.close();
 
     }
 }

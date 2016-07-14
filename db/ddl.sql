@@ -5,9 +5,12 @@ DROP PROCEDURE BatchInsertVoltTable IF EXISTS;
 DROP PROCEDURE apps_by_unique_devices IF EXISTS;
 DROP PROCEDURE SelectDeviceSessions IF EXISTS;
 DROP PROCEDURE insert_session IF EXISTS;
+DROP PROCEDURE CopyToStream IF EXISTS;
 DROP VIEW app_sessions_minutely IF EXISTS;
 DROP VIEW app_usage IF EXISTS;
 DROP TABLE app_session IF EXISTS;
+DROP TABLE app_session_tracking IF EXISTS;
+DROP STREAM app_session_stream IF EXISTS;
 
 END_OF_BATCH
 
@@ -22,8 +25,23 @@ CREATE TABLE app_session (
   ts               TIMESTAMP    DEFAULT NOW
 );
 PARTITION TABLE app_session ON COLUMN deviceid;
-
 CREATE INDEX app_session_idx ON app_session (deviceid);
+CREATE INDEX app_session_ts_idx ON app_session (ts);
+
+CREATE STREAM app_session_stream
+PARTITION ON COLUMN deviceid
+EXPORT TO TARGET archive (
+  appid            INTEGER      NOT NULL,
+  deviceid         BIGINT       NOT NULL,
+  ts               TIMESTAMP    DEFAULT NOW
+);
+
+CREATE TABLE app_session_tracking (
+  dummy_deviceid   INTEGER      NOT NULL,
+  last_ts          TIMESTAMP
+);
+PARTITION TABLE app_session_tracking ON COLUMN dummy_deviceid;
+
 
 CREATE VIEW app_sessions_minutely AS
 SELECT appid, truncate(minute,ts) as minute, count(*) as sessions
@@ -46,5 +64,6 @@ ORDER BY unique_devices DESC;
 CREATE PROCEDURE PARTITION ON TABLE app_session COLUMN deviceid FROM CLASS procedures.SelectDeviceSessions;
 CREATE PROCEDURE PARTITION ON TABLE app_session COLUMN deviceid FROM CLASS procedures.BatchInsert;
 CREATE PROCEDURE PARTITION ON TABLE app_session COLUMN deviceid FROM CLASS procedures.BatchInsertVoltTable;
+CREATE PROCEDURE PARTITION ON TABLE app_session COLUMN deviceid FROM CLASS procedures.CopyToStream;
 
 END_OF_BATCH
