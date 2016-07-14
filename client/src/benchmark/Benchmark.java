@@ -16,7 +16,9 @@ public class Benchmark {
     private int bulkLoaderBatchSize = 500;
 
     public Benchmark(String servers) throws Exception {
-        client = ClientFactory.createClient();
+
+        ClientConfig config = new ClientConfig();
+        client = ClientFactory.createClient(config);
         String[] serverArray = servers.split(",");
         for (String server : serverArray) {
             client.createConnection(server);
