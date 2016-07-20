@@ -1,4 +1,3 @@
-.jar
-.class
-.log
-
+*.jar
+*.class
+*.log
