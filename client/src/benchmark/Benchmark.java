@@ -10,15 +10,12 @@ import org.voltdb.types.*;
 public class Benchmark {
 
     private Client client;
+    private ConnectionManager manager;
     private Random rand = new Random();
 
     public Benchmark(String servers) throws Exception {
-        ClientConfig config = new ClientConfig();
-        client = ClientFactory.createClient(config);
-        String[] serverArray = servers.split(",");
-        for (String server : serverArray) {
-            client.createConnection(server);
-        }
+        manager = new ConnectionManager(servers,"","");
+        client = manager.getClient();
     }
 
     // we must implement the BulkLoaderFailureCallBack interface, there is no default implementation
@@ -38,10 +35,10 @@ public class Benchmark {
     public class Session {
         public int appid;
         public int deviceid;
-        public TimestampType time;
+        public long time;
         Object[] objectArray = {appid, deviceid, time};
 
-        public Session(int appid, int deviceid, TimestampType time) {
+        public Session(int appid, int deviceid, long time) {
             this.appid=appid;
             this.deviceid=deviceid;
             this.time=time;
@@ -67,7 +64,7 @@ public class Benchmark {
 
             int appid = rand.nextInt(50);
             int deviceid = rand.nextInt(1000000);
-            TimestampType time = new TimestampType();
+            long time = System.nanoTime();
 
             client.callProcedure(new BenchmarkCallback("APP_SESSION.insert"),
                                  "APP_SESSION.insert",
@@ -95,7 +92,7 @@ public class Benchmark {
 
             int appid = rand.nextInt(50);
             int deviceid = rand.nextInt(1000000);
-            TimestampType time = new TimestampType();
+            long time = System.nanoTime();
             Session s = new Session(appid,deviceid,time);
 
             bulkLoader.insertRow(s, s.toArray());
@@ -120,7 +117,7 @@ public class Benchmark {
 
         // reusable lists for the input parameters
         //ArrayList<Integer> appidList = new ArrayList<Integer>();
-        ArrayList<TimestampType> timeList = new ArrayList<TimestampType>();
+        ArrayList<Long> timeList = new ArrayList<Long>();
 
         int counter = 0;
         while (counter < testSize) {
@@ -134,7 +131,7 @@ public class Benchmark {
             int batchSize = rand.nextInt(10)+1;
             for (int j=0; j<batchSize; j++) {
                 int appid = rand.nextInt(50);
-                TimestampType time = new TimestampType();
+                long time = System.nanoTime();
                 sessionList.add(new Session(appid,deviceid,time));
                 counter++;
             }
@@ -152,7 +149,7 @@ public class Benchmark {
                                  "BatchInsert",
                                  deviceid,
                                  appidArray,
-                                 timeList.toArray(new TimestampType[0])
+                                 timeList.toArray(new Long[0])
                                  );
 
         }
@@ -169,7 +166,7 @@ public class Benchmark {
 
         // use a VoltTable to store multiple rows (minus the deviceid, since that is constant)
         VoltTable table = new VoltTable(new VoltTable.ColumnInfo("appid",VoltType.INTEGER),
-                                        new VoltTable.ColumnInfo("time",VoltType.TIMESTAMP)
+                                        new VoltTable.ColumnInfo("time",VoltType.BIGINT)
                                         );
 
         int counter = 0;
@@ -183,7 +180,7 @@ public class Benchmark {
             int batchSize = rand.nextInt(10)+1;
             for (int j=0; j<batchSize; j++) {
                 int appid = rand.nextInt(50);
-                TimestampType time = new TimestampType();
+                long time = System.nanoTime();
                 table.addRow(appid,time);
                 counter++;
             }
@@ -217,7 +214,8 @@ public class Benchmark {
 
 
     public void close() throws InterruptedException {
-        client.close();
+        //client.close();
+        manager.close();
     }
 
 
@@ -233,11 +231,12 @@ public class Benchmark {
         int testRecordCount = 1000000;
         if (args.length > 1) {
             testRecordCount = Integer.parseInt(args[1]);
+            System.out.println("testRecordCount = " + testRecordCount);
         }
 
         benchmark.init();
-        //benchmark.runInsertBenchmark(testRecordCount);
-        benchmark.runBulkLoaderBenchmark(testRecordCount,1000);
+        benchmark.runInsertBenchmark(testRecordCount);
+        //benchmark.runBulkLoaderBenchmark(testRecordCount,1000);
         //benchmark.runArrayProcedureBenchmark(testRecordCount);
         //benchmark.runVoltTableProcedureBenchmark(testRecordCount);
         benchmark.runCopyToStream(100000);

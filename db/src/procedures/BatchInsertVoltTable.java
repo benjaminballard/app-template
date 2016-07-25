@@ -13,7 +13,7 @@ public class BatchInsertVoltTable extends VoltProcedure {
         throws VoltAbortException {
 
         while(table.advanceRow()) {
-            voltQueueSQL(sql,(int)table.getLong(0),deviceid,table.getTimestampAsTimestamp(1));
+            voltQueueSQL(sql,(int)table.getLong(0),deviceid,table.getLong(1));
         }
         return voltExecuteSQL();
     }

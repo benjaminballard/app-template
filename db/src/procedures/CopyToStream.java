@@ -17,17 +17,17 @@ import org.voltdb.types.TimestampType;
 public class CopyToStream extends VoltProcedure {
 
     // tracking table
-    public final SQLStmt getLastTime = new SQLStmt("SELECT last_ts FROM app_session_tracking;");
-    public final SQLStmt updateLastTime = new SQLStmt("UPDATE app_session_tracking SET last_ts = ?");
+    public final SQLStmt getLastTime = new SQLStmt("SELECT last_time_nanos FROM app_session_tracking;");
+    public final SQLStmt updateLastTime = new SQLStmt("UPDATE app_session_tracking SET last_time_nanos = ?");
     public final SQLStmt insertLastTime = new SQLStmt("INSERT INTO app_session_tracking VALUES (?,?);");
 
 
     // examine app_sessions table
-    public final SQLStmt countAvailable = new SQLStmt("SELECT COUNT(*) FROM app_session WHERE ts > ? AND ts <= ?;");
-    public final SQLStmt getOffsetTime = new SQLStmt("SELECT ts FROM app_session WHERE ts > ? OFFSET ? LIMIT 1;");
+    public final SQLStmt countAvailable = new SQLStmt("SELECT COUNT(*) FROM app_session WHERE time_nanos > ? AND time_nanos <= ?;");
+    public final SQLStmt getOffsetTime = new SQLStmt("SELECT time_nanos FROM app_session WHERE time_nanos > ? OFFSET ? LIMIT 1;");
 
     // copy data
-    public final SQLStmt copyToStream = new SQLStmt("INSERT INTO app_session_stream SELECT * FROM app_session WHERE ts > ? AND ts <= ?;");
+    public final SQLStmt copyToStream = new SQLStmt("INSERT INTO app_session_stream SELECT * FROM app_session WHERE time_nanos > ? AND time_nanos <= ?;");
 
 
 
@@ -40,22 +40,23 @@ public class CopyToStream extends VoltProcedure {
         long lastTime = 0l;
         if (timeTable.advanceRow()) {
             // table was not empty, get the value
-            lastTime = timeTable.getTimestampAsLong(0);
+            lastTime = timeTable.getLong(0);
         } else {
             // table was empty, populate it set lastTime=0
             voltQueueSQL(insertLastTime,dummyDeviceId,lastTime);
             voltExecuteSQL();
         }
 
-        // calcualte end time --- this needs to be a few milliseconds ago to ensure records still coming in won't be skipped
+        // calculate end time --- this needs to be a few milliseconds ago to ensure records still coming in won't be skipped
+        // use getTransactionTime() because it is a deterministic time value
         Date now = getTransactionTime();
         long nowMillis = now.getTime();
         long endTimeMillis = nowMillis - 500; // 500 milliseconds ago
-        long endTimeMicros = endTimeMillis * 1000;
+        long endTimeNanos = endTimeMillis * 1000 * 1000;
 
 
         // check how many rows are available since lastTime
-        voltQueueSQL(countAvailable, lastTime, endTimeMicros);
+        voltQueueSQL(countAvailable, lastTime, endTimeNanos);
         VoltTable countTable = voltExecuteSQL()[0];
         countTable.advanceRow();
         long count = countTable.getLong(0);
@@ -65,12 +66,12 @@ public class CopyToStream extends VoltProcedure {
             voltQueueSQL(getOffsetTime,lastTime,limit);
             VoltTable offsetTable = voltExecuteSQL()[0];
             offsetTable.advanceRow();
-            endTimeMicros = offsetTable.getTimestampAsLong(0);
+            endTimeNanos = offsetTable.getLong(0);
         }
 
         // copy from the table to the stream and update the lastTime in the tracking table
-        voltQueueSQL(copyToStream,lastTime, endTimeMicros);
-        voltQueueSQL(updateLastTime,endTimeMicros);
+        voltQueueSQL(copyToStream,lastTime, endTimeNanos);
+        voltQueueSQL(updateLastTime,endTimeNanos);
         return voltExecuteSQL(true);
     }
 }

@@ -9,7 +9,7 @@ public class BatchInsert extends VoltProcedure {
         "INSERT INTO app_session VALUES (?,?,?);"
                                            );
 
-    public VoltTable[] run(long deviceid, int[] appid, TimestampType[] ts)
+    public VoltTable[] run(long deviceid, int[] appid, long[] ts)
         throws VoltAbortException {
 
         for (int i=0; i<appid.length; i++) {
